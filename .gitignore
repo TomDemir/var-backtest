@@ -1,0 +1,6 @@
+# Yahoo data is for personal use only: never commit it
+data/
+results/forecasts_*.csv
+__pycache__/
+*.pyc
+.venv/

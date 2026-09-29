@@ -1,0 +1,32 @@
+name: backtest
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["src/**", "scripts/**", "tests/**", "requirements.txt"]
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover tests -v
+      - name: Download SPY (not committed, see README)
+        run: |
+          for i in 1 2 3; do python scripts/download_data.py && break; sleep 30; done
+          test -f data/spy.csv
+      - run: python scripts/run_backtest.py
+      - name: Commit results (derived statistics only, no raw prices)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add README.md results/summary.md results/summary.json results/var99_backtest.png
+          git diff --cached --quiet || git commit -m "Update backtest results [skip ci]"
+          git push
