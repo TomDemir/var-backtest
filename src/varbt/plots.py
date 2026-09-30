@@ -48,14 +48,15 @@ def hero(fc: pd.DataFrame, ticker: str, path: Path) -> None:
         ax.scatter(fc.index[hit], fc["ret"][hit], s=36, color=c, edgecolor=SURFACE,
                    linewidth=2, zorder=3)
         ax.set_title(titles[name], loc="left", fontsize=11, color=INK, fontweight="bold")
-        ax.text(0.995, 0.96,
+        ax.text(0.995, 0.04,
                 f"{hit.sum()} exceptions (expected {len(hit) * 0.01:.0f})   "
                 f"independence test p = {p:.3f}" if np.isfinite(p) else f"{hit.sum()} exceptions",
-                transform=ax.transAxes, ha="right", va="top", color=INK_2, fontsize=9)
+                transform=ax.transAxes, ha="right", va="bottom", color=INK, fontsize=9,
+                bbox={"boxstyle": "round,pad=0.35", "fc": SURFACE, "ec": GRID})
         ax.yaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
         ax.set_ylabel("daily log return")
-    axes[1].text(0.005, 0.04, "line = minus 99% VaR forecast   dots = days the loss exceeded it",
-                 transform=axes[1].transAxes, color=INK_2, fontsize=8.5)
+    axes[0].text(0.005, 0.96, "line = minus 99% VaR forecast   dots = days the loss exceeded it",
+                 transform=axes[0].transAxes, va="top", color=INK_2, fontsize=8.5)
     fig.suptitle(f"{ticker}: one-day 99% VaR, out of sample", x=0.01, ha="left",
                  fontsize=13, fontweight="bold", color=INK)
     fig.tight_layout()

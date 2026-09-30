@@ -15,7 +15,29 @@ run, not typed by hand.
 
 ## Findings
 
-<!-- FINDINGS -->
+1. **Getting the frequency right is not enough.** On SPY the historical model
+   has 11 exceptions for 10 expected, a near-perfect rate, yet the
+   Christoffersen test rejects it (p = 0.004): its exceptions arrive in
+   bursts, when volatility jumps faster than a 250-day window can follow
+   (August 2024, April 2025 on the chart above).
+2. **Only the conditional models survive across asset classes.** At 99%,
+   EWMA and filtered historical simulation pass conditional coverage on all
+   four assets. Historical passes on 2 of 4, Gaussian and Monte Carlo on 1 of 4.
+3. **EWMA fixes timing but not the tail.** It has 15 or 16 exceptions on
+   every asset (10 expected), lands in the Basel yellow zone on all four, and
+   the McNeil-Frey test finds its Expected Shortfall too low on all four
+   (p < 0.05). Normal tails are too thin once volatility is filtered out.
+4. **Filtered historical simulation is the best of the five, not a perfect
+   model.** It passes conditional coverage on all four assets at both 99% and
+   95%, and its ES passes McNeil-Frey at 95% on all four. At 99% it still fails
+   Kupiec on TLT (17 exceptions, p = 0.045) and its ES is rejected on QQQ and
+   GLD (p = 0.032 and 0.044).
+5. **Better calibration did not cost more capital, except on gold.** Filtered
+   historical has a lower mean 99% VaR than plain historical on SPY, QQQ and
+   TLT; on GLD it is 59 bps higher.
+6. **Monte Carlo adds noise, not information.** It tracks the Gaussian model
+   everywhere, and on GLD simulation noise alone moves it from the Basel
+   yellow zone (Gaussian, 22 exceptions) to red (24).
 
 ## Question
 
@@ -48,7 +70,7 @@ results show exactly that.
 | Kupiec (1995) POF | Is the exception rate right? | p < 0.05 |
 | Christoffersen (1998) | Are exceptions independent from one day to the next? | p < 0.05 |
 | Conditional coverage | Both at once (chi2, 2 df) | p < 0.05 |
-| Basel traffic light | Would a regulator accept the model? | yellow or red |
+| Basel traffic light | Would a regulator accept the model? (binomial bands, generalised from 250 to 1,004 days) | yellow or red |
 | McNeil-Frey (2000) | When VaR is breached, is the loss the size ES predicted? | p < 0.05 (one-sided: ES too low) |
 
 Also reported: the **ES ratio** (mean realised loss on exception days divided
