@@ -1,127 +1,126 @@
-# One-day VaR backtest on SPY: historical, Gaussian, Monte Carlo
+# When does a Value-at-Risk model fail? An out-of-sample backtest
 
-Three textbook one-day Value-at-Risk estimators, tested out of sample on five
-years of SPY (S&P 500 ETF) daily data with the Kupiec coverage test and the
-Christoffersen independence test. Expected Shortfall is reported alongside.
+[![backtest](https://github.com/TomDemir/var-backtest/actions/workflows/backtest.yml/badge.svg)](https://github.com/TomDemir/var-backtest/actions/workflows/backtest.yml)
 
-The point of the repo is the **backtest**, not the estimators: a VaR number is
-only worth something if its exceptions arrive at the promised rate and do not
-cluster.
+Five one-day VaR and Expected Shortfall models, forecast one day at a time on
+five years of daily data for four asset classes (SPY, QQQ, TLT, GLD), then
+judged by the tests a risk desk or a regulator would apply: Kupiec coverage,
+Christoffersen independence, the Basel traffic light, and the McNeil-Frey ES
+test.
 
-## Problem
+Every number below is written by `scripts/run_backtest.py` in a GitHub Actions
+run, not typed by hand.
 
-For a long position in SPY, estimate the one-day loss that should be exceeded
-on only 5% (VaR 95%) or 1% (VaR 99%) of days, then check whether it was.
+![SPY 99% VaR, historical vs filtered historical](results/hero.png)
 
-## Method
+## Findings
 
-| Step | Choice |
-|---|---|
-| Returns | Daily log returns of adjusted closes |
-| Estimation window | Rolling, 250 trading days, strictly before the forecast day |
-| Estimators | **Historical** (empirical quantile); **Gaussian** (mean and std of the window, normal quantile); **Monte Carlo** (one-day GBM, 10,000 draws per day, seeded) |
-| ES | Mean loss beyond VaR (historical, MC); closed form (Gaussian) |
-| Exception | Realised loss on day t greater than the VaR forecast for day t |
-| Coverage test | Kupiec (1995) proportion of failures, LR ~ chi2(1) |
-| Independence test | Christoffersen (1998) first-order Markov, LR ~ chi2(1); conditional coverage = sum, chi2(2) |
-| ES check | Ratio of mean realised loss on exception days to mean predicted ES on those days (descriptive, not a formal test) |
+<!-- FINDINGS -->
 
-Reproducibility: fixed download dates, one `SeedSequence` child per forecast
-day for the Monte Carlo draws, pinned requirements, and a SHA-256 of the input
-file written to `results/summary.json`.
+## Question
+
+A 99% VaR promises that losses exceed it on 1% of days, **and** that those
+days arrive at random. The first promise is about the tail of the
+distribution; the second is about how fast the model reacts to a change in
+volatility. The textbook estimators address only the first. Do they keep the
+second, and does a conditional-volatility model fix what they miss?
+
+## Models
+
+| Family | Model | Tomorrow's loss distribution |
+|---|---|---|
+| Unconditional | **Historical** | empirical distribution of the last 250 returns |
+| | **Gaussian** | N(mean, variance) of the last 250 returns |
+| | **Monte Carlo (GBM)** | 10,000 simulated one-day GBM returns, same mean and variance |
+| Conditional | **EWMA (RiskMetrics)** | N(0, EWMA variance), lambda = 0.94 |
+| | **Filtered historical** | last 250 returns divided by their own EWMA volatility, rescaled by tomorrow's |
+
+The EWMA decay lambda = 0.94 is the RiskMetrics (1996) value, fixed before any
+test was run and never tuned on the test period. The Monte Carlo model is
+included because the original version of this project used it; with Gaussian
+shocks over one day it is the Gaussian model plus simulation noise, and the
+results show exactly that.
+
+## Tests
+
+| Test | Question | Null rejected when |
+|---|---|---|
+| Kupiec (1995) POF | Is the exception rate right? | p < 0.05 |
+| Christoffersen (1998) | Are exceptions independent from one day to the next? | p < 0.05 |
+| Conditional coverage | Both at once (chi2, 2 df) | p < 0.05 |
+| Basel traffic light | Would a regulator accept the model? | yellow or red |
+| McNeil-Frey (2000) | When VaR is breached, is the loss the size ES predicted? | p < 0.05 (one-sided: ES too low) |
+
+Also reported: the **ES ratio** (mean realised loss on exception days divided
+by the mean predicted ES) and the **mean VaR**, which is what the model costs
+in capital. A model can pass every test by being very conservative; mean VaR
+exposes that.
 
 ## Results
 
 <!-- RESULTS:START -->
-Data: `data/spy.csv` sha256 `a43744bb621c`, returns 2021-09-28 to 2026-09-25 (n=1254). Rolling window 250 days, out-of-sample test from 2022-09-26, seed 42, 10000 MC draws/day.
-
-| Estimator | Level | Days | Exceptions (obs / exp) | Rate obs / exp | Kupiec p | Christoffersen p | Cond. coverage p | ES ratio |
-|---|---|---|---|---|---|---|---|---|
-| historical | 95% | 1004 | 38 / 50.2 | 3.78% / 5% | 0.065 | 0.014 | 0.009 | 1.09 |
-| gaussian | 95% | 1004 | 40 / 50.2 | 3.98% / 5% | 0.126 | 0.091 | 0.074 | 1.23 |
-| monte_carlo | 95% | 1004 | 41 / 50.2 | 4.08% / 5% | 0.169 | 0.107 | 0.106 | 1.23 |
-| historical | 99% | 1004 | 11 / 10.0 | 1.10% / 1% | 0.764 | 0.004 | 0.016 | 1.24 |
-| gaussian | 99% | 1004 | 12 / 10.0 | 1.20% / 1% | 0.546 | 0.006 | 0.020 | 1.45 |
-| monte_carlo | 99% | 1004 | 14 / 10.0 | 1.39% / 1% | 0.236 | 0.013 | 0.022 | 1.36 |
-
-Full sample, in-sample (descriptive only): excess kurtosis 7.88, skewness 0.15; 99% VaR historical 2.97% vs Gaussian 2.47% (gap 51 bps).
+_Generated by the backtest run._
 <!-- RESULTS:END -->
 
-![99% VaR backtest](results/var99_backtest.png)
+![Scorecard](results/scorecard.png)
 
-### Reading the results
+## Design choices that matter
 
-* **Frequency is fine, timing is not.** At 99%, all three estimators pass
-  Kupiec (11 to 14 exceptions against 10 expected) and all three fail the
-  Christoffersen independence test at the 5% level (p = 0.004 to 0.013).
-  The exceptions arrive in bursts, visible on the chart around August 2024 and
-  April 2025. Conditional coverage is rejected for all three (p about 0.02).
-* **The historical estimator is not better than the Gaussian one here.** It
-  has the fewest 99% exceptions, but its exceptions cluster the most, and at
-  95% it is the only estimator whose conditional coverage is rejected
-  (p = 0.009).
-* **The Gaussian estimator understates the tail it does not cover.** When a
-  99% exception occurs, the realised loss exceeds the Gaussian ES forecast by
-  45% on average (ratio 1.45), against 24% for the historical estimator.
-* **At 95% all three are too conservative** (3.8% to 4.1% exceptions against
-  5%), though Kupiec does not reject at the 5% level.
-* **Monte Carlo matches the Gaussian estimator up to simulation noise** (12
-  vs 14 exceptions at 99%), as the method implies.
-* **In-sample, the tails are fat** (excess kurtosis 7.9; the 99% historical
-  quantile sits 51 bps beyond the Gaussian one), but a 250-day rolling window
-  absorbs most of that for frequency. What it cannot absorb is volatility that
-  changes faster than the window, which is exactly what the independence test
-  catches. The natural next step is a conditional-volatility model (EWMA or
-  filtered historical simulation).
+* **No look-ahead, tested.** The forecast for day t uses returns up to t-1
+  only. A unit test overwrites day t and every later day and checks that all
+  fifteen day-t outputs (VaR, ES, scale for five models) are unchanged.
+* **Causal volatility.** The EWMA variance for day t is built from returns
+  strictly before t; the filtered model standardises each past return with the
+  volatility forecast that existed on that day.
+* **Reproducible randomness.** One `SeedSequence` child per forecast day, so
+  results do not depend on execution order.
+* **One source of truth.** The tables above are injected into this README by
+  the same run that produces `results/summary.json`, which also stores the
+  SHA-256 of every input file.
 
-## Known limitations
+## Limitations
 
-* **The Monte Carlo estimator adds no information.** With Gaussian shocks and a
-  one-day horizon it estimates the same quantile as the Gaussian estimator,
-  plus simulation noise. It is kept as a check on the simulation code, not as
-  an independent model.
-* **Unconditional volatility.** All three estimators weight the 250 past days
-  equally, so they react slowly to volatility regimes. Exception clustering is
-  the expected symptom; the Christoffersen test is there to measure it.
-* **Low power at 99%.** About 1,000 test days give roughly 10 expected
-  exceptions at 99%. Neither test can separate a good model from a mediocre
-  one with that few events, and the Markov independence test is sensitive to
-  one or two consecutive exceptions.
-* **Single asset, single period.** One ETF, one five-year window, no
-  transaction costs, no position sizing.
-* **Data source.** Yahoo Finance via `yfinance`, not an institutional feed.
-  Adjusted prices can be revised retroactively.
+* **Low power at 99%.** About 1,000 test days give 10 expected exceptions.
+  A p-value above 0.05 means "not rejected", not "correct".
+* **Many tests.** Five models, four assets, two levels, several tests: some
+  rejections are expected by chance alone at the 5% level. The conclusions
+  rely on patterns that repeat across assets, not on single p-values.
+* **One period.** 2021 to 2026 contains a rate-hiking cycle and several sharp
+  equity drawdowns; a different five years could rank the models differently.
+* **Single positions, one-day horizon.** No portfolio aggregation, no
+  multi-day scaling, no transaction costs.
+* **Data.** Yahoo Finance adjusted closes via `yfinance`, not an institutional
+  feed; adjusted prices can be revised retroactively.
 
 ## Reproduce
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python scripts/download_data.py          # writes data/spy.csv (not committed)
-python scripts/run_backtest.py           # writes results/, updates this README
-python -m unittest discover tests        # 13 tests
+pip install -r requirements.txt && pip install --no-deps -e .
+python scripts/download_data.py      # data/*.csv, not committed
+python scripts/run_backtest.py       # results/ and the tables above
+python -m unittest discover tests    # 21 tests
 ```
 
-Data is downloaded locally rather than committed: `yfinance` states that the
-Yahoo Finance API is intended for personal use, so the raw prices are not
-redistributed here.
-
-## Tests
-
-`tests/test_varbt.py` checks: Gaussian VaR and ES against closed form;
-historical converging to Gaussian on Gaussian data; ES > VaR; seeded Monte
-Carlo reproducibility; no double Itô correction in the simulated drift;
-**no look-ahead** (corrupting day t and later leaves the day-t forecast
-unchanged); Kupiec against a hand-computed value (10 exceptions in 250 days at
-99%, LR = 12.96); Christoffersen on clustered and spread exceptions; and
-coverage close to nominal when the Gaussian model is true.
+Prices are downloaded locally rather than committed: `yfinance` states that
+the Yahoo Finance API is intended for personal use, so raw data is not
+redistributed here. Only derived statistics are published.
 
 ## Layout
 
 ```
-src/varbt/estimators.py   VaR / ES estimators
-src/varbt/backtest.py     rolling forecasts, Kupiec, Christoffersen
-scripts/download_data.py  data download (yfinance)
-scripts/run_backtest.py   backtest runner, writes results/
-tests/test_varbt.py       unit tests (unittest, also runs under pytest)
+src/varbt/estimators.py   the five VaR / ES models
+src/varbt/backtest.py     rolling forecasts and the four tests
+src/varbt/plots.py        figures
+scripts/                  download and run
+tests/test_varbt.py       21 unit tests, including no-look-ahead and a GARCH sanity check
 ```
+
+## References
+
+* Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. *Journal of Derivatives*.
+* Christoffersen, P. (1998). Evaluating interval forecasts. *International Economic Review*.
+* J.P. Morgan / Reuters (1996). *RiskMetrics Technical Document*.
+* Barone-Adesi, G., Giannopoulos, K., Vosper, L. (1999). VaR without correlations for portfolios of derivative securities. *Journal of Futures Markets*.
+* McNeil, A., Frey, R. (2000). Estimation of tail-related risk measures for heteroscedastic financial time series. *Journal of Empirical Finance*.
+* Basel Committee on Banking Supervision (1996). Supervisory framework for the use of backtesting in conjunction with the internal models approach.
