@@ -85,7 +85,7 @@ exposes that.
 ## Results
 
 <!-- RESULTS:START -->
-**SPY**, returns 2021-09-28 to 2026-09-25, 1004 out-of-sample days from 2022-09-26 (file sha256 `64d55137aa74`). Window 250 days, EWMA lambda 0.94, seed 42, 10,000 Monte Carlo draws per day.
+**SPY**, returns 2021-09-28 to 2026-09-25, 1004 out-of-sample days from 2022-09-26 (file sha256 `c44357ec9ac8`). Window 250 days, EWMA lambda 0.94, seed 42, 10,000 Monte Carlo draws per day.
 
 **99% VaR**
 
