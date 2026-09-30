@@ -164,7 +164,7 @@ def main() -> None:
         f"skewness {fs['skewness']:.2f}; the 99% historical quantile is "
         f"{fs['gap_bps']:.0f} bps beyond the Gaussian one.",
         "",
-        "**Robustness, 99% VaR on four asset classes** "
+        "**Robustness, 99% VaR on four ETFs (US equities, Treasuries, gold)** "
         "(exceptions / expected · conditional coverage at 5%)",
         "",
         *robustness_table(res, 0.99),

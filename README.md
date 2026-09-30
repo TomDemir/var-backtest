@@ -3,13 +3,15 @@
 [![backtest](https://github.com/TomDemir/var-backtest/actions/workflows/backtest.yml/badge.svg)](https://github.com/TomDemir/var-backtest/actions/workflows/backtest.yml)
 
 Five one-day VaR and Expected Shortfall models, forecast one day at a time on
-five years of daily data for four asset classes (SPY, QQQ, TLT, GLD), then
+five years of daily data for four ETFs across three asset classes (US equities:
+SPY, QQQ; long Treasuries: TLT; gold: GLD), then
 judged by the tests a risk desk or a regulator would apply: Kupiec coverage,
 Christoffersen independence, the Basel traffic light, and the McNeil-Frey ES
 test.
 
-Every number below is written by `scripts/run_backtest.py` in a GitHub Actions
-run, not typed by hand.
+Every number in the Results tables is written by `scripts/run_backtest.py` in
+a GitHub Actions run, not typed by hand; the Findings below are checked
+against `results/summary.json`.
 
 ![SPY 99% VaR, historical vs filtered historical](results/hero.png)
 
@@ -20,21 +22,23 @@ run, not typed by hand.
    Christoffersen test rejects it (p = 0.004): its exceptions arrive in
    bursts, when volatility jumps faster than a 250-day window can follow
    (August 2024, April 2025 on the chart above).
-2. **Only the conditional models survive across asset classes.** At 99%,
+2. **At 99%, only the conditional models survive across assets.**
    EWMA and filtered historical simulation pass conditional coverage on all
-   four assets. Historical passes on 2 of 4, Gaussian and Monte Carlo on 1 of 4.
-3. **EWMA fixes timing but not the tail.** It has 15 or 16 exceptions on
-   every asset (10 expected), lands in the Basel yellow zone on all four, and
-   the McNeil-Frey test finds its Expected Shortfall too low on all four
-   (p from 0.004 to 0.047, the last one on TLT and borderline). Normal tails are too thin once volatility is filtered out.
+   four ETFs. Historical passes on 2 of 4, Gaussian and Monte Carlo on 1 of 4.
+3. **EWMA fixes timing but not the tail.** At 99% it has 15 or 16
+   exceptions on every ETF (10 expected), lands in the Basel yellow zone on
+   all four, and the McNeil-Frey test finds its Expected Shortfall too low on
+   all four (p from 0.004 to 0.047, the last one on TLT and borderline).
+   Normal tails are too thin once volatility is filtered out.
 4. **Filtered historical simulation is the best of the five, not a perfect
    model.** It passes conditional coverage on all four assets at both 99% and
-   95%, and its ES passes McNeil-Frey at 95% on all four. At 99% it still fails
-   Kupiec on TLT (17 exceptions, p = 0.045) and its ES is rejected on QQQ and
-   GLD (p = 0.032 and 0.044).
+   95%, and McNeil-Frey does not reject its ES at 95% on any of the four. At 99% it still fails
+   Kupiec on TLT (17 exceptions, p = 0.045, Basel yellow), its ES is rejected
+   on QQQ and GLD (p = 0.032 and 0.044), and at 95% on GLD its exceptions fail
+   the independence test (p = 0.029) even though conditional coverage passes.
 5. **Better calibration did not cost more capital, except on gold.** Filtered
    historical has a lower mean 99% VaR than plain historical on SPY, QQQ and
-   TLT; on GLD it is 59 bps higher.
+   TLT; on GLD it is 58 bps higher.
 6. **Monte Carlo adds noise, not information.** It tracks the Gaussian model
    everywhere, and on GLD simulation noise alone moves it from the Basel
    yellow zone (Gaussian, 22 exceptions) to red (24).
@@ -55,7 +59,7 @@ second, and does a conditional-volatility model fix what they miss?
 | | **Gaussian** | N(mean, variance) of the last 250 returns |
 | | **Monte Carlo (GBM)** | 10,000 simulated one-day GBM returns, same mean and variance |
 | Conditional | **EWMA (RiskMetrics)** | N(0, EWMA variance), lambda = 0.94 |
-| | **Filtered historical** | last 250 returns divided by their own EWMA volatility, rescaled by tomorrow's |
+| | **Filtered historical** | last 250 returns divided by their own EWMA volatility, rescaled by tomorrow's (230 on the first 20 test days: EWMA burn-in) |
 
 The EWMA decay lambda = 0.94 is the RiskMetrics (1996) value, fixed before any
 test was run and never tuned on the test period. The Monte Carlo model is
@@ -74,8 +78,8 @@ results show exactly that.
 | McNeil-Frey (2000) | When VaR is breached, is the loss the size ES predicted? | p < 0.05 (one-sided: ES too low) |
 
 Also reported: the **ES ratio** (mean realised loss on exception days divided
-by the mean predicted ES) and the **mean VaR**, which is what the model costs
-in capital. A model can pass every test by being very conservative; mean VaR
+by the mean predicted ES) and the **mean VaR** (in log-return units, like all
+VaR and ES figures here), which is what the model costs in capital. A model can pass every test by being very conservative; mean VaR
 exposes that.
 
 ## Results
@@ -140,7 +144,8 @@ In-sample, for reference only: excess kurtosis 7.9, skewness 0.15; the 99% histo
   results do not depend on execution order.
 * **Stable inputs.** Yahoo returns adjusted closes that differ across
   downloads in the last floating-point digits; two CI runs on such inputs
-  agreed to within 2e-4 on every statistic, with identical exception counts.
+  (commits `efc5a3c` and `be7d0b7`) agreed to within 2e-4 on every statistic,
+  with identical exception counts.
   Prices are now rounded to 6 decimals on download so the input hash is stable.
 * **One source of truth.** The tables above are injected into this README by
   the same run that produces `results/summary.json`, which also stores the
