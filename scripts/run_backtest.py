@@ -75,6 +75,29 @@ def main() -> None:
             f"{s.rate_obs:.2%} / {s.rate_exp:.0%} | {fmt(s.kupiec_p, '.3f')} | "
             f"{fmt(s.christ_p, '.3f')} | {fmt(s.cc_p, '.3f')} | {fmt(s.es_ratio, '.2f')} |"
         )
+    # Full-sample descriptive statistics (in-sample, NOT a backtest): these are
+    # the quantities the original script printed, recomputed for traceability.
+    from scipy import stats as st
+    x = r.to_numpy()
+    hist99 = -np.quantile(x, 0.01)
+    param99 = -(x.mean() + st.norm.ppf(0.01) * x.std(ddof=1))
+    full = {
+        "excess_kurtosis": float(st.kurtosis(x)),
+        "skewness": float(st.skew(x)),
+        "hist_var99": float(hist99),
+        "gauss_var99": float(param99),
+        "gap_bps": float((hist99 - param99) * 1e4),
+    }
+    lines += [
+        "",
+        f"Full sample, in-sample (descriptive only): excess kurtosis {full['excess_kurtosis']:.2f}, "
+        f"skewness {full['skewness']:.2f}; 99% VaR historical {hist99:.2%} vs Gaussian "
+        f"{param99:.2%} (gap {full['gap_bps']:.0f} bps).",
+    ]
+    summary = json.loads((out / "summary.json").read_text())
+    summary["full_sample"] = full
+    (out / "summary.json").write_text(json.dumps(summary, indent=2))
+
     table = "\n".join(lines) + "\n"
     (out / "summary.md").write_text(table)
     print(table)
