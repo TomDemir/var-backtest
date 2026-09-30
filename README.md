@@ -142,11 +142,11 @@ In-sample, for reference only: excess kurtosis 7.9, skewness 0.15; the 99% histo
   volatility forecast that existed on that day.
 * **Reproducible randomness.** One `SeedSequence` child per forecast day, so
   results do not depend on execution order.
-* **Stable inputs.** Yahoo returns adjusted closes that differ across
-  downloads in the last floating-point digits; two CI runs on such inputs
-  (commits `efc5a3c` and `be7d0b7`) agreed to within 2e-4 on every statistic,
-  with identical exception counts.
-  Prices are now rounded to 6 decimals on download so the input hash is stable.
+* **Stable results on unstable inputs.** Yahoo returns slightly different
+  adjusted closes on every download, so the input SHA-256 changes from run to
+  run. Across four CI runs (commits `efc5a3c`, `be7d0b7`, `4736e49`,
+  `4d69c50`) every exception count was identical and every statistic agreed
+  to within 2e-4.
 * **One source of truth.** The tables above are injected into this README by
   the same run that produces `results/summary.json`, which also stores the
   SHA-256 of every input file.
