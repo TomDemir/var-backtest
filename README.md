@@ -47,6 +47,33 @@ Data: `data/spy.csv` sha256 `a43744bb621c`, returns 2021-09-28 to 2026-09-25 (n=
 Full sample, in-sample (descriptive only): excess kurtosis 7.88, skewness 0.15; 99% VaR historical 2.97% vs Gaussian 2.47% (gap 51 bps).
 <!-- RESULTS:END -->
 
+![99% VaR backtest](results/var99_backtest.png)
+
+### Reading the results
+
+* **Frequency is fine, timing is not.** At 99%, all three estimators pass
+  Kupiec (11 to 14 exceptions against 10 expected) and all three fail the
+  Christoffersen independence test at the 5% level (p = 0.004 to 0.013).
+  The exceptions arrive in bursts, visible on the chart around August 2024 and
+  April 2025. Conditional coverage is rejected for all three (p about 0.02).
+* **The historical estimator is not better than the Gaussian one here.** It
+  has the fewest 99% exceptions, but its exceptions cluster the most, and at
+  95% it is the only estimator whose conditional coverage is rejected
+  (p = 0.009).
+* **The Gaussian estimator understates the tail it does not cover.** When a
+  99% exception occurs, the realised loss exceeds the Gaussian ES forecast by
+  45% on average (ratio 1.45), against 24% for the historical estimator.
+* **At 95% all three are too conservative** (3.8% to 4.1% exceptions against
+  5%), though Kupiec does not reject at the 5% level.
+* **Monte Carlo matches the Gaussian estimator up to simulation noise** (12
+  vs 14 exceptions at 99%), as the method implies.
+* **In-sample, the tails are fat** (excess kurtosis 7.9; the 99% historical
+  quantile sits 51 bps beyond the Gaussian one), but a 250-day rolling window
+  absorbs most of that for frequency. What it cannot absorb is volatility that
+  changes faster than the window, which is exactly what the independence test
+  catches. The natural next step is a conditional-volatility model (EWMA or
+  filtered historical simulation).
+
 ## Known limitations
 
 * **The Monte Carlo estimator adds no information.** With Gaussian shocks and a
