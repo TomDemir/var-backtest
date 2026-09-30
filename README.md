@@ -26,7 +26,7 @@ run, not typed by hand.
 3. **EWMA fixes timing but not the tail.** It has 15 or 16 exceptions on
    every asset (10 expected), lands in the Basel yellow zone on all four, and
    the McNeil-Frey test finds its Expected Shortfall too low on all four
-   (p < 0.05). Normal tails are too thin once volatility is filtered out.
+   (p from 0.004 to 0.047, the last one on TLT and borderline). Normal tails are too thin once volatility is filtered out.
 4. **Filtered historical simulation is the best of the five, not a perfect
    model.** It passes conditional coverage on all four assets at both 99% and
    95%, and its ES passes McNeil-Frey at 95% on all four. At 99% it still fails
@@ -138,6 +138,10 @@ In-sample, for reference only: excess kurtosis 7.9, skewness 0.15; the 99% histo
   volatility forecast that existed on that day.
 * **Reproducible randomness.** One `SeedSequence` child per forecast day, so
   results do not depend on execution order.
+* **Stable inputs.** Yahoo returns adjusted closes that differ across
+  downloads in the last floating-point digits; two CI runs on such inputs
+  agreed to within 2e-4 on every statistic, with identical exception counts.
+  Prices are now rounded to 6 decimals on download so the input hash is stable.
 * **One source of truth.** The tables above are injected into this README by
   the same run that produces `results/summary.json`, which also stores the
   SHA-256 of every input file.

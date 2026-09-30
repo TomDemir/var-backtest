@@ -20,7 +20,7 @@ def fetch(ticker: str, start: str, end: str, out_dir: Path, retries: int = 3) ->
     for attempt in range(1, retries + 1):
         df = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
         if not df.empty:
-            close = df["Close"].squeeze().rename("close")
+            close = df["Close"].squeeze().rename("close").round(6)  # Yahoo float noise varies per download
             path = out_dir / f"{ticker.lower()}.csv"
             close.to_csv(path, index_label="date")
             print(f"{ticker}: {len(close)} rows, {close.index[0].date()} to {close.index[-1].date()}")
